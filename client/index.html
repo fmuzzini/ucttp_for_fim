@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" lang="text/css" href="css/style.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+    <script type="application/javascript" src="js/ucttp_input.js"></script>
+    <script type="application/javascript" src="js/ucttp_output.js"></script>
+    <script type="application/javascript" src="js/ucttp_init.js"></script>
+    <script type="application/javascript" src="js/ucttp_parsing.js"></script>
+    <script type="application/javascript" src="js/ucttp_selezione.js"></script>
+    <title>UCTT for FIM</title>
+</head>
+<body onload="init()">
+
+<form id="files" method="post" enctype="multipart/form-data" action="#" onsubmit="invia(this); return false;"></form>
+<form id="selezione" action="#" onsubmit="return visualizza(this)"></form>
+<table id="tab_output"></table>
+
+</body>
+</html>

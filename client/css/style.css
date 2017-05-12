@@ -1,0 +1,9 @@
+#tab_output td {
+    border: 1px solid brown;
+    text-align: center;
+    padding: 3px;
+}
+
+.header_giorno, .header_ora {
+    background-color: blanchedalmond;
+}
