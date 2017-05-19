@@ -51,6 +51,12 @@ class SchemaAule:
                 res[i,j] = 1
         return res
 
+    def get_set_att(self):
+        return set(range(len(Aula.map_att)))
+
+    def get_set_sedi(self):
+        return set(range(len(Sede.map_sedi)))
+
 class Aula:
     map_att = {}
     index = 0

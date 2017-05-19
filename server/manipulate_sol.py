@@ -33,8 +33,9 @@ def mapping(o, map):
 
     c = corsi[o.c]
     r = aule[o.r]
+    n = o.c
 
-    res = Ora(c, o.d, o.h, r)
+    res = Ora(c, o.d, o.h, r, n)
 
     return res
 
@@ -49,8 +50,9 @@ class IndexValue:
 
 
 class Ora:
-    def __init__(self, c, d, h, r):
-        self.c = c;
-        self.d = d;
-        self.h = h;
-        self.r = r;
+    def __init__(self, c, d, h, r, n):
+        self.c = c
+        self.d = d
+        self.h = h
+        self.r = r
+        self.n = n

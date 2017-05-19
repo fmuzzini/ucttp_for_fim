@@ -19,7 +19,7 @@ class SchemaXls:
         for i in xrange(1,self.nrow):
             row = self.sheet.row(i)
             ok = True
-            for k,v in kwargs:
+            for k,v in kwargs.items():
                 n = self.schema[k]
                 if row[n].value != v:
                     ok = False
@@ -29,14 +29,14 @@ class SchemaXls:
         return res
 
     def get_first_row_where(self, **kwargs):
-        return self.get_rows_where(kwargs)[0]
+        return self.get_rows_where(**kwargs)[0]
 
     def get_campo(self, row, campo):
         n = self.schema[campo]
         return row[n].value
 
     def get_campo_where(self, campo, **kwargs):
-        row = self.get_first_row_where(kwargs)
+        row = self.get_first_row_where(**kwargs)
         return self.get_campo(row, campo)
 
     def get_rows_list(self):

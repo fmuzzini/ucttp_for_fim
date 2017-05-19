@@ -4,36 +4,65 @@ import json
 from manipulate_sol import get_nonzero_index, mapping_indici
 from ParsinigXls import get_data_for_model, load_data
 from modello import solve_model
+from parsingAule import SchemaAule
+from SchemaPesi import SchemaPesi
+from SchemaDisp import SchemaDisp
+from SchemaParametri import SchemaParametri
 
 # file contenenti i dati
-file_ins = open('Insegnamenti easy2016_completo.xls', mode="rb")
-file_man = open('Manifesto easy2016.xls', mode="rb")
-file_piani = open('piani easy2016_con_blocchi.xls', mode="rb")
-file_aule = open('Aule.xls', mode="rb")
+file_ins = open('Insegnamenti easy2016_completo.xls', mode="rb").read()
+file_man = open('Manifesto easy2016.xls', mode="rb").read()
+file_piani = open('piani easy2016_con_blocchi.xls', mode="rb").read()
+file_aule = open('Aule.xls', mode="rb").read()
+file_pesi = open('Pesi.xls', mode='rb').read()
+file_disp = open('Indisponibilita.xls', mode='rb').read()
+file_param = open('Parametri.xls', mode='rb').read()
 
 # parsing dei file xls
-dict_cdl, dict_aule = load_data(file_ins.read(), file_man.read(), file_piani.read(), file_aule.read())
+dict_cdl, dict_aule, dict_lez_shared, lista_cod_shared = load_data(file_ins, file_man, file_piani, file_aule)
 
-semestre = 1;
-#semestre = input("Inserisci il semestre deisderato -> 1: primo semestre, 2: secondo semestre: ")
-#while (semestre != 1 and semestre != 2):
-#    semestre = raw_input("Inserisci il semestre deisderato -> 1: primo semestre, 2: secondo semestre: ")
+#parsing attrezzature
+schema_aule = SchemaAule(file_aule)
+LIST_ATT = schema_aule.get_matrix_att()
+ATT = schema_aule.get_set_att()
+EDI = schema_aule.get_lista_sedi()
+E = schema_aule.get_set_sedi()
 
+schema_pesi = SchemaPesi(file_pesi)
+TAB_PESI = schema_pesi.get_tab_pesi()
+meta = schema_pesi.get_meta()
+
+schema_param = SchemaParametri(file_param, meta)
+semestre = schema_param.semestre
+HI = schema_param.get_hi()
+
+coef = {
+    'edi': schema_param.edi,
+    'att': schema_param.att,
+    'cap': schema_param.cap,
+    'comp': schema_param.comp,
+    'sov': schema_param.sov
+}
 
 # ottenimento dati utili per il modello
-map_corsi, C, CIC, P, CLO, NUM_STUD, R, CAP_AULA, map_aule, D, H, map_giorni, map_orari = get_data_for_model(dict_cdl, dict_aule, semestre)
+map_corsi, C, CIC, P, CLO, NUM_STUD, R, CAP_AULA, map_aule, D, H, map_giorni, map_orari = get_data_for_model(dict_cdl, dict_aule, lista_cod_shared, dict_lez_shared, semestre)
 map = {
      "corsi": map_corsi,
      "aule": map_aule,
      "giorni" : map_giorni,
      "orari" : map_orari
 }
-HI = [0,4] #ore di inizio lezioni, prima ora e dopo pranzo
 
+schema_disp = SchemaDisp(file_disp, map_corsi, meta)
+PROF_OUT = schema_disp.get_prof_out()
+
+CL = []
+CORSI_ATT = []
+CORSI_EDI = []
 
 # risoluzione modello
 try:
-    sol = solve_model(C, D, H, R, CIC, P, CLO, HI, CAP_AULA, NUM_STUD)
+    sol = solve_model(C, D, H, R, CIC, P, CLO, CL, HI, PROF_OUT, CAP_AULA, ATT, LIST_ATT, CORSI_ATT, E, EDI, CORSI_EDI, NUM_STUD, TAB_PESI, coef)
 except Exception as e:
     print e.message
     exit(0)
@@ -45,4 +74,4 @@ orario_raw = get_nonzero_index(sol.x)
 orario = mapping_indici(orario_raw, map)
 
 j = json.dumps([o.__dict__ for o in orario])
-print j
+#print j
