@@ -156,8 +156,8 @@ def testNotOverlapMandatoryCourse(out):
         #print search_type_course(corso, map_corsi)
         #if (search_type_course(out, corso) == corso_obb):
         if (out[j]['c'][key_corsi][index_corsi][key_tipo] == corso_obb):
-            #print '###########################'
-            #print corso
+            # print '###########################'
+            # print corso
             orario = out[j]['h']
             giorno = out[j]['d']
             anno = out[j]['c'][key_corsi][index_corsi][key_anno]
@@ -177,6 +177,7 @@ def testNotOverlapMandatoryCourse(out):
                         # print cdl
                         # print mag_tr
                         # print anno
+                        # print out[i]['d']
                         # print '###########################'
                         return False
     return True
@@ -195,16 +196,20 @@ def testAllCoursesPresent(out, map_corsi):
     id_corsi = 0  # per evitare di guardare i corsi condivisi
     key_nome_corso = 'nome'
     for i in out:
+        #print i
         lista_corsi_orario_modello.append(i['c'][key_corsi][id_corsi][key_nome_corso])
     lista_corsi_orario_modello.sort()
     for key, value in map_corsi.iteritems():
         lista_corsi_orario_reali.append(value[key_corsi][id_corsi][key_nome_corso])
     lista_corsi_orario_reali.sort()
+    #print lista_corsi_orario_reali
+    #print lista_corsi_orario_modello
     # for i in xrange(lista_corsi_orario_modello.__len__()):
     #     if (lista_corsi_orario_modello[i] != lista_corsi_orario_reali[i]):
-            # print i
-            # print lista_corsi_orario_modello[i]
-            # print lista_corsi_orario_reali[i]
+    #         print i
+    #         print 'caio'
+    #         print lista_corsi_orario_modello[i]
+    #         print lista_corsi_orario_reali[i]
     if (lista_corsi_orario_modello == lista_corsi_orario_reali):
         return True
     return False
@@ -306,7 +311,8 @@ def testRespectRoomCapacity(out, map_corsi, NUM_STUD, map_aule, CAP_AULA):
 #   - True: test ok
 #   - False: test fallito
 def testSingleBlockCoursePerDay(out):
-    giorni = ['Lunedi', 'Martedi', 'Mercoledi', 'Giovedi', 'Venerdi']
+    #giorni = ['Lunedi', 'Martedi', 'Mercoledi', 'Giovedi', 'Venerdi']
+    giorni = range(5)
     key_corsi = 'corsi effettivi'
     id_corsi = 0  # per evitare di guardare i corsi condivisi
     key_nome_corso = 'nome'
@@ -350,9 +356,10 @@ def testSingleBlockCoursePerDay(out):
 #   - new_out: orario ordinato per giorni e fasce orarie (si ottiene prima tutt i lunedi delle 9, poi delle 10,
 #  ..., poi tutti i martedi, ...)
 def ordina_orario(out):
-    fasce_orarie = ['9:00-10:00', '10:00-11:00', '11:00-12:00', '12:00-13:00', '14:00-15:00', '15:00-16:00',
-                    '16:00-17:00', '17:00-18:00']
-    giorni = ['Lunedi', 'Martedi', 'Mercoledi', 'Giovedi', 'Venerdi']
+    #fasce_orarie = ['9:00-10:00', '10:00-11:00', '11:00-12:00', '12:00-13:00', '14:00-15:00', '15:00-16:00', '16:00-17:00', '17:00-18:00']
+    #giorni = ['Lunedi', 'Martedi', 'Mercoledi', 'Giovedi', 'Venerdi']
+    fasce_orarie = range(8)
+    giorni = range(5)
 
     new_out = []
     for gg in giorni:
@@ -372,8 +379,10 @@ def ordina_orario(out):
 #   - True: test ok
 #   - False: test fallito
 def testHourConsecutiveness(out):
-    fasce_orarie = ['9:00-10:00', '10:00-11:00', '11:00-12:00', '12:00-13:00', '14:00-15:00', '15:00-16:00', '16:00-17:00', '17:00-18:00']
-    giorni = ['Lunedi', 'Martedi', 'Mercoledi', 'Giovedi', 'Venerdi']
+    #fasce_orarie = ['9:00-10:00', '10:00-11:00', '11:00-12:00', '12:00-13:00', '14:00-15:00', '15:00-16:00', '16:00-17:00', '17:00-18:00']
+    #giorni = ['Lunedi', 'Martedi', 'Mercoledi', 'Giovedi', 'Venerdi']
+    fasce_orarie = range(8)
+    giorni = range(5)
     key_corsi = 'corsi effettivi'
     id_corsi = 0  # per evitare di guardare i corsi condivisi
     key_nome_corso = 'nome'
@@ -469,9 +478,10 @@ def search_course_before_or_after(out, j, orari_possibili_per_corso, corso, anno
 #   - True: test ok
 #   - False: test fallito
 def testSingleHour(out):
-    fasce_orarie = ['9:00-10:00', '10:00-11:00', '11:00-12:00', '12:00-13:00', '14:00-15:00', '15:00-16:00',
-                    '16:00-17:00', '17:00-18:00']
-    giorni = ['Lunedi', 'Martedi', 'Mercoledi', 'Giovedi', 'Venerdi']
+    #fasce_orarie = ['9:00-10:00', '10:00-11:00', '11:00-12:00', '12:00-13:00', '14:00-15:00', '15:00-16:00', '16:00-17:00', '17:00-18:00']
+    #giorni = ['Lunedi', 'Martedi', 'Mercoledi', 'Giovedi', 'Venerdi']
+    fasce_orarie = range(8)
+    giorni = range(5)
     key_corsi = 'corsi effettivi'
     id_corsi = 0  # per evitare di guardare i corsi condivisi
     key_nome_corso = 'nome'

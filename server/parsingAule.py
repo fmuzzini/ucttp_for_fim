@@ -31,12 +31,15 @@ class SchemaAule:
             if a.n == i:
                 return a
 
-    def get_lista_sedi(self):
-        res = np.array([0 for i in xrange(Aula.index)])
+    def get_mat_sedi(self):
+        n_s = len(Sede.map_sedi)
+        n_a = Aula.index
+        res = np.array([0 for i in xrange(n_a*n_s)]).reshape((n_a,n_s))
         lista = self.get_lista_aule()
         for i in lista:
             a = self.get_aule_from_index(i)
-            res[i] = a.sede.n
+            s = a.sede.n
+            res[i,s] = 1
         return res
 
     def get_matrix_att(self):

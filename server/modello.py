@@ -90,7 +90,7 @@ def solve_model(C, D, H, R, CIC, P, CLO, CL, HI, PROF_OUT, CAP_AULA, ATT, LIST_A
         funz_agg.append(obj_e)
 
     #vincolo sovrapposizione corsi facoltativi
-    cf = (xp.sum([x[c,d,h,r] for r in R for c in cl]) <= s[index,d,h] for d in D for h in H for (index,cl) in enumerate(CL))
+    cf = (xp.Sum([x[c,d,h,r] for r in R for c in cl]) <= s[index,d,h] for d in D for h in H for (index,cl) in enumerate(CL))
 
     #funzione obbiettivo base (solo capacita' aule)
     obj_cap = (coef['cap'] * xp.Sum([csi_cap[c,d,h,r] for c in CIC_union for d in D for h in H for r in R]))

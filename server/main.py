@@ -8,6 +8,8 @@ from parsingAule import SchemaAule
 from SchemaPesi import SchemaPesi
 from SchemaDisp import SchemaDisp
 from SchemaParametri import SchemaParametri
+from SchemaBlocchi import SchemaBlocchi
+from SchemaEdi import SchemaEdi
 
 # file contenenti i dati
 file_ins = open('Insegnamenti easy2016_completo.xls', mode="rb").read()
@@ -17,15 +19,17 @@ file_aule = open('Aule.xls', mode="rb").read()
 file_pesi = open('Pesi.xls', mode='rb').read()
 file_disp = open('Indisponibilita.xls', mode='rb').read()
 file_param = open('Parametri.xls', mode='rb').read()
+file_blocchi = open("Blocchi.xls", mode='rb').read()
+file_edi = open("Edifici.xls", mode="rb").read()
 
 # parsing dei file xls
-dict_cdl, dict_aule, dict_lez_shared, lista_cod_shared = load_data(file_ins, file_man, file_piani, file_aule)
+dict_cdl, dict_aule, dict_lez_shared, lista_cod_shared, dict_preferenze_prof = load_data(file_ins, file_man, file_piani, file_aule, file_blocchi)
 
 #parsing attrezzature
 schema_aule = SchemaAule(file_aule)
 LIST_ATT = schema_aule.get_matrix_att()
 ATT = schema_aule.get_set_att()
-EDI = schema_aule.get_lista_sedi()
+EDI = schema_aule.get_mat_sedi()
 E = schema_aule.get_set_sedi()
 
 schema_pesi = SchemaPesi(file_pesi)
@@ -45,7 +49,8 @@ coef = {
 }
 
 # ottenimento dati utili per il modello
-map_corsi, C, CIC, P, CLO, NUM_STUD, R, CAP_AULA, map_aule, D, H, map_giorni, map_orari = get_data_for_model(dict_cdl, dict_aule, lista_cod_shared, dict_lez_shared, semestre)
+map_corsi, C, CIC, P, CLO, NUM_STUD, CL, R, CAP_AULA, map_aule, D, H, map_giorni, map_orari = get_data_for_model(dict_cdl, dict_aule, lista_cod_shared, dict_lez_shared, dict_preferenze_prof, semestre)
+
 map = {
      "corsi": map_corsi,
      "aule": map_aule,
@@ -56,9 +61,14 @@ map = {
 schema_disp = SchemaDisp(file_disp, map_corsi, meta)
 PROF_OUT = schema_disp.get_prof_out()
 
-CL = []
-CORSI_ATT = []
-CORSI_EDI = []
+schema_blocchi = SchemaBlocchi(C, schema_aule, file_blocchi, dict_preferenze_prof)
+CORSI_ATT = schema_blocchi.get_corsi_att()
+D = schema_pesi.get_d()
+H = schema_pesi.get_h()
+R = schema_aule.get_lista_aule()
+
+schema_edi = SchemaEdi(C, CIC, file_edi, file_piani, map_corsi)
+CORSI_EDI = schema_edi.get_corsi_edi()
 
 # risoluzione modello
 try:

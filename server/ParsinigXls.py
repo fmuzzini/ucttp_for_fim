@@ -31,13 +31,16 @@ def from_string_to_label_col(label_col, worksheet, exact_match=False):
 #   - file_man: nome file dei dati del manifesto
 #   - file_piani: nome file dei dati dei piani di studio
 #   - file_aule: nome file dei dati sulle aule
+#   - file_blocchi: nome file dei dati sulle preferenze dei prof
 # return:
 #   - dict_cdl: dizionario dei dati dei corsi
 #   - dict_aule: dizionario dei dati delle aule
 #   - dict_lez_shared: dizionario dei corsi condivisi
 #   - lista_cod_shared: lista dei corsi condivisi a coppie
+#   dict_preferenze_prof: dizionario delle preferenze di un prof per un proprio corso
 
-def load_data(file_ins, file_man, file_piani, file_aule):
+def load_data(file_ins, file_man, file_piani, file_aule, file_blocchi):
+
     ####################
     # caricamento dati #
     ####################
@@ -53,6 +56,9 @@ def load_data(file_ins, file_man, file_piani, file_aule):
 
     workbook_aule = xlrd.open_workbook(file_contents=file_aule, encoding_override="cp1252")
     worksheet_aule = workbook_aule.sheet_by_index(0)  # ottengo il primo foglio
+
+    workbook_blocchi = xlrd.open_workbook(file_contents=file_blocchi, encoding_override="cp1252")
+    worksheet_blocchi = workbook_blocchi.sheet_by_index(0)  # ottengo il primo foglio
 
     ########################################################################################################################
     # - PER I CORSI -> voglio costrutire un dizionario che contiene tutti i dati, fatto nel seguente modo:
@@ -473,7 +479,47 @@ def load_data(file_ins, file_man, file_piani, file_aule):
 
     #print dict_aule
 
-    return dict_cdl, dict_aule, dict_lez_shared, lista_cod_shared
+    ################################################################
+    # raccolta dati preferenze professore (blocchi ore, strumenti) #
+    ################################################################
+
+    # creo un dizionario che raccoglie le preferenze di un prof
+    #   - codice corso 1:
+    #       - lista di preferenze (es. 2 ore, lab si ...)
+    #   - codice corso 1:
+    #       - lista di preferenze (es. 3 ore, lab si ...)
+    #   - codice corso 1 ripetuto per tutti i blocchi di ore della settimana
+    #   - codice corso 2:
+    #       - .....
+    dict_preferenze_prof = {}
+
+    col_key = from_string_to_label_col('codice corso completo', worksheet_blocchi)  # 0
+    col_ore_blocco = from_string_to_label_col('ore blocco', worksheet_blocchi)  # 1
+    if (col_key == -1 or col_ore_blocco == -1):
+        print 'errore dati 9 (blocchi)'
+        exit(1)
+
+    # popolo il dizionario dei dati
+    for i in xrange(1, worksheet_blocchi.nrows):
+        key = worksheet_blocchi.cell_value(i, col_key)
+
+        # ottengo i dati delle preferenze
+        lista_att = []
+        for j in xrange(col_ore_blocco+1, worksheet_blocchi.ncols):
+            data = worksheet_blocchi.cell_value(i, j)
+            lista_att.append(data)
+
+        item = {
+            'ore': int(worksheet_blocchi.cell_value(i, col_ore_blocco)),
+            'index': None,
+            'att': lista_att
+        }
+        try:
+            dict_preferenze_prof[key].append(item)
+        except KeyError:
+            dict_preferenze_prof.setdefault(key, [item])
+
+    return dict_cdl, dict_aule, dict_lez_shared, lista_cod_shared, dict_preferenze_prof
 
 # funzione che estrae dai vari dizionari solo le informazioni relative ad un particolare semestre
 # parametri:
@@ -483,6 +529,7 @@ def load_data(file_ins, file_man, file_piani, file_aule):
 #   - dict_P_s1_s2: dizionario dei corsi dei prof
 #   - dict_CLO_s1_s2: dizionario dei corsi obbligatori
 #   - dict_num_stud: dizionario del numero degli studenti frequentanti
+#   - dictCL: dizionario delle ore di CL (anche consigliate)
 #   - sem: chiave di accesso e filtro dei dati contenuti nei precedenti dizionari
 # return:
 #   - CORSI: lista di mapping dei corsi di un particolare semestre con i rispettivi identificativi
@@ -491,17 +538,18 @@ def load_data(file_ins, file_man, file_piani, file_aule):
 #   - P: lista dei corsi dei prof di un particolare semestre
 #   - CLO: lista dei corsi obbligatori di un particolare semestre
 #   - NUM_STUD: lista degli studenti frequentanti i corsi di un particolare semestre
-def extract_semestre_from_dict(dict_corsi_s1_s2, dict_set_C_s1_s2, dict_CIC_s1_s2, dict_P_s1_s2, dict_CLO_s1_s2, dict_num_stud, sem):
+#   - CL: lista delle ore dei corsi (anche consigliate) di un particolare semestre
+def extract_semestre_from_dict(dict_corsi_s1_s2, dict_set_C_s1_s2, dict_CIC_s1_s2, dict_P_s1_s2, dict_CLO_s1_s2, dict_num_stud, dict_CL, sem):
     CORSI = dict_corsi_s1_s2[sem]
     C = dict_set_C_s1_s2[sem]
     CIC = dict_CIC_s1_s2[sem]
     P = dict_P_s1_s2[sem]
     CLO = dict_CLO_s1_s2[sem]
     NUM_STUD = dict_num_stud[sem]
-    return CORSI, C, CIC, P, CLO, NUM_STUD
+    CL = dict_CL[sem]
+    return CORSI, C, CIC, P, CLO, NUM_STUD, CL
 
-#####################################################################
-#funzione che resituisce le informazioni principali di un corso condiviso, preso dal dizionario dei corsi condivisi
+#funzione che resituisce le informazioni principali di un corso condiviso, preso dal dizionario dei corsi condivisi (utile sia per i CLO che per i CL)
 # parametri:
 #   - dict_lez_shared: dizionario dei corsi condivisi
 #   - key_shared: chiave del corso condiviso da cercare
@@ -509,16 +557,41 @@ def extract_semestre_from_dict(dict_corsi_s1_s2, dict_set_C_s1_s2, dict_CIC_s1_s
 #   - tupla delle caratteristiche (vuota se non lo trova)
 def get_data_course_cond(dict_lez_shared, key_shared):
     index_key = 1
-    index_tipo = 4
     for key, value in dict_lez_shared.iteritems():
         for corso_shared in value:
-            if (corso_shared[index_key] == key_shared and corso_shared[index_tipo] == 'obbligatorio'):
+            if (corso_shared[index_key] == key_shared):
                 list_tmp = []
                 for val in corso_shared:
                     list_tmp.append(str(val))
                 return tuple(list_tmp)
 
     return ()
+
+# funzione che permette di aggiungere alla lista delle ore dei corsi sia di CLO che di CL le ore dei corsi condivisi (sia obbligatorie che consigliate)
+# parametri:
+#   - dict_map_ore_course_shared: dizionario di mapping tra ore e corsi condivisi
+#   - k_cdl: tipologia di corso di laurea del corso
+#   - k_durata: durata degli studi (es. L2 o LM)
+#   - k_anni: anno del corso
+#   - k_sem: semestre del corso
+#   - lista_ore_semestre: lista delle ore (certe volte di CLO altre di CL)
+#   - flag: selettore di scelta tra CLO e CL (default a True per i CLO)
+# return:
+#   - aggiornamento della lista passata
+def add_ore_corso_cond(dict_map_ore_course_shared, k_cdl, k_durata, k_anni, k_sem, lista_ore_semestre, flag=True):
+    for chiave, valore in dict_map_ore_course_shared.iteritems():
+        lista_chiave = chiave.split('/')
+        if (flag):              # per i CLO
+            if (lista_chiave[0] == k_cdl and lista_chiave[2] == k_durata and int(lista_chiave[3]) == k_anni and lista_chiave[4] == 'obbligatorio'
+                and lista_chiave[5] == k_sem):
+                for ora in valore:
+                    if (ora not in lista_ore_semestre):
+                        lista_ore_semestre.append(ora)
+        else:                   # per i CL
+            if (lista_chiave[0] == k_cdl and lista_chiave[2] == k_durata and int(lista_chiave[3]) == k_anni and lista_chiave[5] == k_sem):
+                for ora in valore:
+                    if (ora not in lista_ore_semestre):
+                        lista_ore_semestre.append(ora)
 
 # funzione che permette di ottenere il codice del corso condiviso in coppia con quello la cui chiave e' richiesta in ingresso
 # parametri:
@@ -538,7 +611,6 @@ def search_cod_shared(lista_cod_shared, key):
     if (lista_cod_shared[index][0] == key):
         return lista_cod_shared[index][1]
     return lista_cod_shared[index][0]
-#####################################################################
 
 num_settimane_semestre = 12
 # funzione che converte il numero di ore semestrali (presenti nei dati) in ore settimanali
@@ -553,7 +625,7 @@ def from_ore_semestrali_to_ore_settimanali(ore_sem):
 # parametri:
 #   - cdl: nome del cdl della lezione corrente nel ciclo for
 #   - sem: semestre della lezione corrente nel ciclo for
-#   - nome_corso: nome della lezione corrente nel ciclo for
+#   - key_corso: chiave della lezione corrente nel ciclo for
 #   - dict_cdl: dizionario generale dei corsi
 # return:
 #   - lista: lista contenente stessa lezione di eventuali altri cdl
@@ -570,7 +642,7 @@ def search_same_course_in_other_cdl(cdl, sem, key_corso, dict_cdl):
 
                                 if (key == key_corso and k_cdl != cdl and k_sem == sem):
                                     lista.append({'corso_di_laurea': k_cdl, 'mag_tr': k_durata, 'anno': k_anni,
-                                                'tipo': k_tipo, 'nome': value[index_nome]})
+                                                'tipo': k_tipo, 'nome': value[index_nome], 'chiave': key_corso})
     return lista
 
 
@@ -580,6 +652,7 @@ def search_same_course_in_other_cdl(cdl, sem, key_corso, dict_cdl):
 #   - dict_aule: dizionario dei dati delle aule
 #   - dict_lez_shared: dizionario dei corsi condivisi
 #   - lista_cod_shared: lista dei corsi condivisi a coppie
+#   - dict_preferenze_prof: dizionario delle preferenze di un prof per un proprio corso
 #   - semestre_scelto: identificativo numerico del semestre di interesse
 # return:
 #   - CORSI: dizionario di mapping tra corsi e ore
@@ -595,7 +668,8 @@ def search_same_course_in_other_cdl(cdl, sem, key_corso, dict_cdl):
 #   - H: fasce orarie
 #   - dict_giorni: dizionario di mapping per i giorni
 #   - dict_orari: dizionario di mapping per le fasce orarie
-def get_data_for_model(dict_cdl, dict_aule, lista_cod_shared, dict_lez_shared, semestre_scelto):
+def get_data_for_model(dict_cdl, dict_aule, lista_cod_shared, dict_lez_shared, dict_preferenze_prof, semestre_scelto):
+
     #######################################################
     # raccolta dati singoli che servono al modello xpress #
     #######################################################
@@ -709,13 +783,18 @@ def get_data_for_model(dict_cdl, dict_aule, lista_cod_shared, dict_lez_shared, s
     for i in lista_cod_shared:
         lista_cod_shared_srotolata += i
 
-    ##########################
     # creo dei dizionari di mapping tra corso condiviso e ore in comune
     # carattersitche_corso_shared_1 = [0 1 2 3 4]
     # carattersitche_corso_shared_2 = [100 101 102 103]
     dict_map_ore_course_shared_s1 = {}
     dict_map_ore_course_shared_s2 = {}
-    ##########################
+
+    # creo i dizionari di CL per entrambi i semestri
+    # tali dizionari contengono le ore dei relativi corsi di laurea (anche quelli consigliati)
+    # [[0,1,2,3,4,5..], [10,11,12..], ...]
+    lista_CL_s1 = []
+    lista_CL_s2 = []
+    # NOTA: sfrutto gli stessi dizionari di mapping tra ore e corsi condivisi
 
     old_cod_gen_ins = []
     index_ore = 0
@@ -727,8 +806,12 @@ def get_data_for_model(dict_cdl, dict_aule, lista_cod_shared, dict_lez_shared, s
         for k_durata, v_durata in v_cdl.iteritems():
             for k_anni, v_anni in v_durata.iteritems():
                 for k_sem, v_sem in v_anni.iteritems():
+                    # per i CLO
                     lista_co_semestre_s1 = []
                     lista_co_semestre_s2 = []
+                    # per i CL
+                    lista_CL_semestre_s1 = []
+                    lista_CL_semestre_s2 = []
                     for k_tipo, v_tipo in v_sem.iteritems():
                         for corso in v_tipo:
                             for key, value in corso.iteritems():
@@ -740,106 +823,152 @@ def get_data_for_model(dict_cdl, dict_aule, lista_cod_shared, dict_lez_shared, s
 
                                 # creo due liste che utilizzero' anche piu' avanti
                                 # servono per memorizzare le ore dei corsi condivisi
-                                lista_tmp_ore_s1 = []
-                                lista_tmp_ore_s2 = []
+                                lista_tmp_ore_anche_cons_s1 = []
+                                lista_tmp_ore_anche_cons_s2 = []
                                 if (k_sem == 'S1'):
-                                    # per gli indici delle ore
-                                    if (k_tipo == 'obbligatorio'):
-                                        lista_tmp_ore_s1 = range(index_c_s1, index_c_s1 + ore_settimanali)
+                                    # per gli indici delle ore (sia per CLO che per CL)
+                                    lista_tmp_ore_anche_cons_s1 = range(index_c_s1, index_c_s1 + ore_settimanali)
 
                                 else:           # s2
-                                    # per gli indici delle ore
-                                    if (k_tipo == 'obbligatorio'):
-                                        lista_tmp_ore_s2 = range(index_c_s2, index_c_s2 + ore_settimanali)
+                                    # per gli indici delle ore (sia per CLO che per CL)
+                                    lista_tmp_ore_anche_cons_s2 = range(index_c_s2, index_c_s2 + ore_settimanali)
 
                                 # nuovo corso (e anche solo uno dei corsi condivisi della coppia)
                                 if (key not in old_cod_gen_ins):
-                                    #########AGGIUNTA##################
                                     key_shared = ''
                                     if (key in lista_cod_shared_srotolata):
                                         # cerco codice corso con il quale il corso corrente e' condiviso
+
                                         key_shared = search_cod_shared(lista_cod_shared, key)
                                         old_cod_gen_ins.append(key_shared)
-                                    #########AGGIUNTA##################
 
                                     # contatore per i corsi (dict_corsi_s1 e s2)
                                     if (k_sem == 'S1'):
                                         index_corsi_s1 += 1
 
-                                        ############################################################################
                                         # appendo al dizionario di mapping tra corso condiviso e ore condivise
 
                                         # cerco le caratteristiche dell'altro corso; le utilizzero' come chiave
-                                        # fatta a path
+                                        # fatta a path (tale dizionario serve sia a CLO che ha CL)
 
-                                        if (key_shared != ''):              # k_tipo == 'obbligatorio' and
+                                        if (key_shared != ''):
                                             tupla_caratt_corso_shared = get_data_course_cond(dict_lez_shared, key_shared)
                                             if (tupla_caratt_corso_shared):
                                                 key_dict_map_ore_course_shared_s1 = '/'.join(tupla_caratt_corso_shared)
-                                                dict_map_ore_course_shared_s1[key_dict_map_ore_course_shared_s1] = lista_tmp_ore_s1
-                                        ############################################################################
+                                                dict_map_ore_course_shared_s1[key_dict_map_ore_course_shared_s1] = lista_tmp_ore_anche_cons_s1
 
                                         # per il dizionario di mapping dei corsi
                                         dict_tmp = {'corso_di_laurea': k_cdl, 'mag_tr': k_durata, 'anno': k_anni,
-                                                    'tipo': k_tipo, 'nome': value[index_nome]}
+                                                    'tipo': k_tipo, 'nome': value[index_nome], 'chiave': key}
                                         list_tmp = []
                                         list_tmp.append(dict_tmp)
 
-                                        #############METTI LA CHIAVE DELLA COPPIA CONDIVISA##########################
                                         new_lista = []
                                         if (key_shared != ''):      # se corso condiviso
                                             new_lista = search_same_course_in_other_cdl(k_cdl, k_sem, key_shared,
                                                                                         dict_cdl)
-                                        #else:
-                                        #############METTI LA CHIAVE DELLA COPPIA CONDIVISA##########################
-                                        #    new_lista = search_same_course_in_other_cdl(k_cdl, k_sem, value[index_nome], dict_cdl) #value[index_nome], dict_cdl)
                                         list_tmp += new_lista
                                         dict_inside_map_ore_corso_s1['prof'] = prof
                                         dict_inside_map_ore_corso_s1['corsi effettivi'] = list_tmp
 
-                                        ######messo#1##########
-                                        lista_CI_s1.append(range(index_c_s1, index_c_s1 + ore_settimanali,
-                                                                 blocchi_ore_corso))  # nota il range equivale al CI
-                                        ######messo#1##########
+                                        try:
+                                            lista_blocchi_ore = dict_preferenze_prof[key]
+                                            lista_ore_iniz = []
+                                            lista_ore_iniz.append(index_c_s1)
+                                            index_copia_c = index_c_s1
+                                            last_block = 0
+                                            first_field_pref = 'ore'
+                                            fine_ore_real = index_c_s1 + ore_settimanali
+                                            sum_ore = 0
+                                            max_ore = 3
+                                            for bo in xrange(len(lista_blocchi_ore)):
+                                                last_block = lista_blocchi_ore[bo][first_field_pref]
+                                                sum_ore += last_block
+                                                index_copia_c += last_block
+
+                                                lista_blocchi_ore[bo]['index'] = index_copia_c - last_block
+
+                                                if (fine_ore_real - index_copia_c > max_ore):       # se lo scarto e' grande e posso aggiungere ore
+                                                    lista_ore_iniz.append(index_copia_c)
+                                                else:
+                                                    # non aggiungo l'inizio ora se e' l'utlima lista o se si va oltre le ore possibili
+                                                    if (bo != len(lista_blocchi_ore)-1 and index_copia_c < fine_ore_real):
+                                                        lista_ore_iniz.append(index_copia_c)
+
+                                            fine_ore = index_c_s1 + sum_ore
+
+                                            # se non ho raggiunto tutte le ore di quel corso attraverso le preferenze indicate
+                                            if (fine_ore < fine_ore_real):
+                                                remain = fine_ore_real - fine_ore       # prendo lo scarto
+                                                blocchi_default = 2
+                                                lista_ore_iniz += range(lista_ore_iniz[-1] + blocchi_default, fine_ore + remain, blocchi_default)
+
+                                            lista_CI_s1.append(lista_ore_iniz)
+                                        except KeyError:                # se non e' stata inserita una preferenza per quel corso
+                                            lista_CI_s1.append(range(index_c_s1, index_c_s1 + ore_settimanali, blocchi_ore_corso))
+
                                     else:
                                         index_corsi_s2 += 1
 
-                                        ############################################################################
                                         # appendo al dizionario di mapping tra corso condiviso e ore condivise
 
                                         # cerco le caratteristiche dell'altro corso; le utilizzero' come chiave
-                                        # fatta a path
-                                        if (key_shared != ''):  # k_tipo == 'obbligatorio' and
+                                        # fatta a path (tale dizionario serve sia a CLO che ha CL)
+                                        if (key_shared != ''):
                                             tupla_caratt_corso_shared = get_data_course_cond(dict_lez_shared,
                                                                                              key_shared)
                                             if (tupla_caratt_corso_shared):
                                                 key_dict_map_ore_course_shared_s2 = '/'.join(tupla_caratt_corso_shared)
                                                 dict_map_ore_course_shared_s2[
-                                                    key_dict_map_ore_course_shared_s2] = lista_tmp_ore_s2
-                                        ############################################################################
+                                                    key_dict_map_ore_course_shared_s2] = lista_tmp_ore_anche_cons_s2
 
                                         # per il dizionario di mapping dei corsi
                                         dict_tmp = {'corso_di_laurea': k_cdl, 'mag_tr': k_durata, 'anno': k_anni,
-                                                    'tipo': k_tipo, 'nome': value[index_nome]}
+                                                    'tipo': k_tipo, 'nome': value[index_nome], 'chiave': key}
                                         list_tmp = []
                                         list_tmp.append(dict_tmp)
 
-                                        #############METTI LA CHIAVE DELLA COPPIA CONDIVISA##########################
                                         new_lista = []
                                         if (key_shared != ''):  # se corso condiviso
                                             new_lista = search_same_course_in_other_cdl(k_cdl, k_sem, key_shared,
                                                                                         dict_cdl)
-                                        # else:
-                                        #############METTI LA CHIAVE DELLA COPPIA CONDIVISA##########################
-                                        #new_lista = search_same_course_in_other_cdl(k_cdl, k_sem, value[index_nome], dict_cdl)
                                         list_tmp += new_lista
                                         dict_inside_map_ore_corso_s2['prof'] = prof
                                         dict_inside_map_ore_corso_s2['corsi effettivi'] = list_tmp
 
-                                        ######messo#1##########
-                                        lista_CI_s2.append(range(index_c_s2, index_c_s2 + ore_settimanali,
-                                                                 blocchi_ore_corso))  # nota il range equivale al CI
-                                        ######messo#1##########
+                                        try:
+                                            lista_blocchi_ore = dict_preferenze_prof[key]
+                                            lista_ore_iniz = []
+                                            lista_ore_iniz.append(index_c_s2)
+                                            index_copia_c = index_c_s2
+                                            last_block = 0
+                                            first_field_pref = 0
+                                            fine_ore_real = index_c_s2 + ore_settimanali
+                                            sum_ore = 0
+                                            max_ore = 3
+                                            for bo in xrange(len(lista_blocchi_ore)):
+                                                last_block = lista_blocchi_ore[bo][first_field_pref]
+                                                sum_ore += last_block
+                                                index_copia_c += last_block
+
+                                                if (fine_ore_real - index_copia_c > max_ore):       # se lo scarto e' grande e posso aggiungere ore
+                                                    lista_ore_iniz.append(index_copia_c)
+                                                else:
+                                                    # non aggiungo l'inizio ora se e' l'utlima lista o se si va oltre le ore possibili
+                                                    if (bo != len(lista_blocchi_ore)-1 and index_copia_c < fine_ore_real):
+                                                        lista_ore_iniz.append(index_copia_c)
+
+                                            fine_ore = index_c_s2 + sum_ore
+
+                                            # se non ho raggiunto tutte le ore di quel corso attraverso le preferenze indicate
+                                            if (fine_ore < fine_ore_real):
+                                                remain = fine_ore_real - fine_ore       # prendo lo scarto
+                                                blocchi_default = 2
+                                                lista_ore_iniz += range(lista_ore_iniz[-1] + blocchi_default, fine_ore + remain, blocchi_default)
+
+                                            lista_CI_s2.append(lista_ore_iniz)
+                                        except KeyError:                # se non e' stata inserita una preferenza per quel corso
+                                            lista_CI_s2.append(range(index_c_s2, index_c_s2 + ore_settimanali, blocchi_ore_corso))
 
                                     # per ripetere lo stesso corso in base a quante ore settimanali dispone
                                     for t in xrange(ore_settimanali):
@@ -865,10 +994,11 @@ def get_data_for_model(dict_cdl, dict_aule, lista_cod_shared, dict_lez_shared, s
                                                 dict_map_prof_corsi_s1[index_prof_searched].append(index_c_s1)
 
                                             # per i corsi obbligatori
-                                            ##################tolto##2#########################
                                             if (k_tipo == 'obbligatorio'):
                                                 lista_co_semestre_s1.append(index_c_s1)
-                                            ##################tolto##2#########################
+
+                                            # per i CL
+                                            lista_CL_semestre_s1.append(index_c_s1)
 
                                             # per gli studenti
                                             lista_num_stud_s1.append(num_stud)
@@ -902,10 +1032,11 @@ def get_data_for_model(dict_cdl, dict_aule, lista_cod_shared, dict_lez_shared, s
                                                 dict_map_prof_corsi_s2[index_prof_searched].append(index_c_s2)
 
                                             # per i corsi obbligatori
-                                            ################tolto#2############################
                                             if (k_tipo == 'obbligatorio'):
                                                 lista_co_semestre_s2.append(index_c_s2)
-                                            #################tolto#2###########################
+
+                                            # per i CL
+                                            lista_CL_semestre_s2.append(index_c_s2)
 
                                             # per gli studenti
                                             lista_num_stud_s2.append(num_stud)
@@ -916,29 +1047,40 @@ def get_data_for_model(dict_cdl, dict_aule, lista_cod_shared, dict_lez_shared, s
                                             index_c_s2 += 1
                                             index_copia_s2 += 1
                                 else:           # uno dei due corsi condivisi della coppia
-
                                     if (k_sem == 'S1'):
-                                        for chiave, valore in dict_map_ore_course_shared_s1.iteritems():
-                                            lista_chiave = chiave.split('/')
-                                            if (lista_chiave[0] == k_cdl and lista_chiave[2] == k_durata and int(lista_chiave[3]) == k_anni and lista_chiave[4] == k_tipo
-                                                and lista_chiave[5] == k_sem):
-                                                for ora in valore:
-                                                    if (ora not in lista_co_semestre_s1):
-                                                        # print '################################'
-                                                        # print lista_chiave
-                                                        # print valore
-                                                        # print lista_co_semestre_s1
-                                                        # print '################################'
-                                                        lista_co_semestre_s1.append(ora)
+                                        # per i CLO
+                                        add_ore_corso_cond(dict_map_ore_course_shared_s1, k_cdl, k_durata, k_anni,
+                                                           k_sem, lista_co_semestre_s1)
+                                        # per i CL
+                                        add_ore_corso_cond(dict_map_ore_course_shared_s1, k_cdl, k_durata, k_anni,
+                                                           k_sem, lista_CL_semestre_s1, False)
+
+                                    if (k_sem == 'S2'):
+                                        # per i CLO
+                                        add_ore_corso_cond(dict_map_ore_course_shared_s2, k_cdl, k_durata, k_anni, k_sem, lista_co_semestre_s2)
+                                        # per i CL
+                                        add_ore_corso_cond(dict_map_ore_course_shared_s2, k_cdl, k_durata, k_anni, k_sem, lista_CL_semestre_s2, False)
 
                                     index_copia_s1 += 1
                                     index_copia_s2 += 1
 
+                    # per i CLO
                     if (lista_co_semestre_s1 != []):
                         #print k_cdl + k_durata + str(k_anni)
                         lista_CO_s1.append(lista_co_semestre_s1)
                     if (lista_co_semestre_s2 != []):
                         lista_CO_s2.append(lista_co_semestre_s2)
+                    # per i CL
+                    if (lista_CL_semestre_s1 != []):
+                        lista_CL_s1.append(lista_CL_semestre_s1)
+                    if (lista_CL_semestre_s2 != []):
+                        lista_CL_s2.append(lista_CL_semestre_s2)
+
+    # raggruppo i dizionari dei CL
+    dict_CL = {}
+    dict_CL['S1'] = lista_CL_s1
+    dict_CL['S2'] = lista_CL_s2
+    #print 'CL: ' + str(dict_CL)
 
     # raggruppo i dizionari del mapping ore e corso con le chiavi dei due semestri
     dict_map_ore_corso_s1_s2 = {}
@@ -1057,8 +1199,8 @@ def get_data_for_model(dict_cdl, dict_aule, lista_cod_shared, dict_lez_shared, s
     #print H
 
     if (semestre_scelto == 1):
-        CORSI, C, CIC, P, CLO, NUM_STUD = extract_semestre_from_dict(dict_map_ore_corso_s1_s2, dict_set_C_s1_s2, dict_CIC_s1_s2, dict_P_s1_s2, dict_CLO_s1_s2, dict_num_stud, 'S1')
-        return CORSI, C, CIC, P, CLO, NUM_STUD, R, lista_cap_aule, dict_id_aule, D, H, dict_giorni, dict_orari
+        CORSI, C, CIC, P, CLO, NUM_STUD, CL = extract_semestre_from_dict(dict_map_ore_corso_s1_s2, dict_set_C_s1_s2, dict_CIC_s1_s2, dict_P_s1_s2, dict_CLO_s1_s2, dict_num_stud, dict_CL, 'S1')
+        return CORSI, C, CIC, P, CLO, NUM_STUD, CL, R, lista_cap_aule, dict_id_aule, D, H, dict_giorni, dict_orari
     # se semstre 2
-    CORSI, C, CIC, P, CLO, NUM_STUD = extract_semestre_from_dict(dict_map_ore_corso_s1_s2, dict_set_C_s1_s2, dict_CIC_s1_s2, dict_P_s1_s2, dict_CLO_s1_s2, dict_num_stud, 'S2')
-    return CORSI, C, CIC, P, CLO, NUM_STUD, R, lista_cap_aule, dict_id_aule, D, H, dict_giorni, dict_orari
+    CORSI, C, CIC, P, CLO, NUM_STUD, CL = extract_semestre_from_dict(dict_map_ore_corso_s1_s2, dict_set_C_s1_s2, dict_CIC_s1_s2, dict_P_s1_s2, dict_CLO_s1_s2, dict_num_stud, dict_CL, 'S2')
+    return CORSI, C, CIC, P, CLO, NUM_STUD, CL, R, lista_cap_aule, dict_id_aule, D, H, dict_giorni, dict_orari
