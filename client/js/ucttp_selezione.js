@@ -57,7 +57,7 @@ function remove_next(ind){
 
 function visualizza() {
     var orario = lista_select[lista_select.length-1].orario;
-    init_tabella({col:["Lunedì", "Martedì", "Mercoledì", "Giovedì", "Venerdì"], row:["9", "10", "11", "12", "14", "15", "16", "17"]});
+    init_tabella();
     set_virtual_table(orario);
     disegna_tabella();
 }

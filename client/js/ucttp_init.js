@@ -4,10 +4,10 @@
 
 
 var URL = "cgi-bin/ucttp.py";   // URL della pagina del risolutore
-var input_file = ['piani', 'manifesto', 'insegnamenti', 'aule'];    //nomi dei file necessari come l'input
+var input_file = ['piani', 'manifesto', 'insegnamenti', 'aule', 'pesi', 'indisponibilita', 'parametri', 'blocchi', 'edifici'];    //nomi dei file necessari come l'input
 
 var id_table = "tab_output";    //id della tabella di output
-var id_selezione = "selezione"  //id del form di selezione
+var id_selezione = "selezione";  //id del form di selezione
 
 function init() {
     init_input();

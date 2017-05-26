@@ -15,10 +15,10 @@ function get_table(){
 }
 
 //inizializza la struttura della tabella
-function init_tabella(meta){
+function init_tabella(){
     table.text("");
-    col = meta.col;
-    row = meta.row;
+    col = meta.giorni;
+    row = meta.ore;
 
     cell_table = new matrix(row.length, col.length);
 
@@ -38,7 +38,7 @@ function init_tabella(meta){
 
         //le altre celle della riga hanno attributi sulla posizione
         for (var j=0; j<col.length; j++){
-            cell = $("<td></td>").attr("h", i).attr("d", j);
+            cell = $("<td></td>").attr("h", i).attr("d", j).attr("ondragover", "allowDrop(event)").attr("ondrop", "drop(event)");
             o_row.append(cell);
             cell_table.set(i,j,cell);
         }
@@ -67,8 +67,13 @@ function set_virtual_table(orario){
         ora = orario[i];
         h = ora.h;
         d = ora.d;
+        ora.id = get_id(ora);
         virtual_table.get(h,d).add(ora);
     }
+}
+
+function get_id(ora) {
+    return ora.n;
 }
 
 function disegna_tabella(){
@@ -92,16 +97,41 @@ function widget_ora(h,d){
 
     this.display = function() {
         r = $("<div></div>").attr("class", "widget");
-        testo = "";
         for (var i=0; i<this.ore.length; i++){
-            testo += this.ore[i].c["corsi effettivi"][0].nome;
+            var p = $("<p>").attr("draggable", "true").attr("class", "corso").attr("ondragstart", "drag(event)");
+            var text = get_nome(this.ore[i].c);
+            var prof = $("<p>").attr("class", "prof").text(this.ore[i].c.prof);
+            var aula = $("<p>").attr("class", "aula").text(this.ore[i].r);
+            var id = this.ore[i].id;
+            p.attr("id", id);
+            p.text(text);
+            p.append(prof);
+            p.append(aula);
+            r.append(p);
         }
 
-        r.text(testo);
+
 
         cell_table.get(this.h, this.d).append(r);
     }
 
+}
+
+function get_nome(corso_) {
+    var corsi = corso_['corsi effettivi'];
+    if (form_selezione.next_sel.value !== 'courses'){
+        return corsi[0].nome;
+    }
+
+    var corso = form_selezione.next_sel;
+    var mag_tr = corso.next_sel;
+    var anno = mag_tr.next_sel;
+    for(var i=0; i<corsi.length; i++){
+        var ef = corsi[i];
+        if (ef['mag_tr'] === mag_tr && ef['anno'] === anno && ef['corso'] === corso){
+            return ef['nome']
+        }
+    }
 }
 
 function matrix(x,y){

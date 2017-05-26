@@ -39,6 +39,8 @@ function create_input_element(input_file) {
 
 //gestisce l'invio dei file in modo asincrono
 function invia(f) {
+    table.text("");
+    form_selezione.text("");
     fm = f;
     data = new FormData();
     for(var index in input_elem){
@@ -69,11 +71,9 @@ function success(data) {
     data.splice(0,2);
     response = data[0];
     j = JSON.parse(response);
-    orari_cat = parsing(j);
+    orario = j.orario;
+    orario_iniziale = JSON.parse(JSON.stringify(orario));
+    orari_cat = parsing(orario);
+    meta = j.meta;
     set_selezione(orari_cat);
-    //init_tabella({col:["Lunedì", "Martedì", "Mercoledì", "Giovedì", "Venerdì"], row:["9", "10", "11", "12", "14", "15", "16", "17"]});
-    //set_virtual_table(rooms["Aula M1.4"]);
-    //disegna_tabella();
-//    set_selezione(j);
-
 }

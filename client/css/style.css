@@ -7,3 +7,8 @@
 .header_giorno, .header_ora {
     background-color: blanchedalmond;
 }
+
+.prof, .aula {
+    font-style: italic;
+    font-size: small;
+}
