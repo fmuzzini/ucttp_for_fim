@@ -25,6 +25,7 @@ function drop(ev) {
     muovi(data, g, h);
 
     target.appendChild(document.getElementById(data));
+    visualizza();
 }
 
 function allowDrop(ev) {

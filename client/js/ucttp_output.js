@@ -96,21 +96,28 @@ function widget_ora(h,d){
     };
 
     this.display = function() {
-        r = $("<div></div>").attr("class", "widget");
+        var r = $("<div></div>").attr("class", "widget");
         for (var i=0; i<this.ore.length; i++){
-            var p = $("<p>").attr("draggable", "true").attr("class", "corso").attr("ondragstart", "drag(event)");
+            var id = this.ore[i].id;
             var text = get_nome(this.ore[i].c);
+            var h3 = $("<h3>").text(text);
+            var p = $("<p>").attr("draggable", "true").attr("class", "corso").attr("ondragstart", "drag(event)");
             var prof = $("<p>").attr("class", "prof").text(this.ore[i].c.prof);
             var aula = $("<p>").attr("class", "aula").text(this.ore[i].r);
-            var id = this.ore[i].id;
             p.attr("id", id);
             p.text(text);
             p.append(prof);
             p.append(aula);
+
+            r.append(h3);
             r.append(p);
         }
 
-
+        $( function() {
+            r.accordion({
+                header: "h3"
+            });
+        } );
 
         cell_table.get(this.h, this.d).append(r);
     }
