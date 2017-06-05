@@ -2,6 +2,19 @@
     border: 1px solid brown;
     text-align: center;
     padding: 3px;
+    height: 80px
+}
+
+#input_orario {
+    float: right;
+}
+
+#tab_output td:not(.header_ora) {
+    width: 10%
+}
+
+#tab_output {
+    width: 80%;
 }
 
 .header_giorno, .header_ora {
@@ -11,4 +24,20 @@
 .prof, .aula {
     font-style: italic;
     font-size: small;
+}
+
+#files input {
+    display: block;
+}
+
+.ui-dialog-titlebar-no-close {
+    display: none;
+}
+
+.right {
+    float: right;
+}
+
+.ui-dialog {
+  position: fixed !important;
 }

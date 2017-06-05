@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <link rel="stylesheet" lang="text/css" href="css/style.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+    <script type="application/javascript" src="js/ucttp_init.js"></script>
+    <script type="application/javascript" src="js/ucttp_parsing.js"></script>
+    <script type="application/javascript" src="js/ucttp_selezione.js"></script>
+    <script type="application/javascript" src="js/ucttp_output.js"></script>
+    <script type="application/javascript" src="js/visualizza.js"></script>
+    <meta charset="UTF-8">
+    <title>Orario FIM</title>
+</head>
+<body onload="get_orario()">
+    <label for="selezione">Selezione Orario</label>
+    <form id="selezione" action="#" onsubmit="return visualizza(this)"></form>
+
+    <table id="tab_output"></table>
+</body>
+</html>

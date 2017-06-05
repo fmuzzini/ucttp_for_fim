@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="it">
 <head>
     <meta charset="UTF-8">
     <link rel="stylesheet" href="//code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
@@ -11,14 +11,63 @@
     <script type="application/javascript" src="js/ucttp_init.js"></script>
     <script type="application/javascript" src="js/ucttp_parsing.js"></script>
     <script type="application/javascript" src="js/ucttp_selezione.js"></script>
-    <script type="application/javascript" src="js/ucttp_drag.js"></script>
+    <script type="application/javascript" src="js/ucttp_mod.js"></script>
+    <script type="application/javascript" src="js/testOrario.js"></script>
+    <script type="application/javascript" src="js/ucttp_io.js"></script>
     <title>UCTT for FIM</title>
 </head>
 <body onload="init()">
 
-<form id="files" method="post" enctype="multipart/form-data" action="#" onsubmit="invia(this); return false;"></form>
-<form id="selezione" action="#" onsubmit="return visualizza(this)"></form>
-<table id="tab_output"></table>
+<h2>Input</h2>
+<div>
+    <div class="right">
+        <form id="form_carica_orario" action="#" onsubmit="carica()">
+            <label for="input_orario">Oppure carica orario</label><br>
+            <input id="input_orario" type="file"><br>
+            <input type="submit" value="OK">
+        </form>
+    </div>
+    <div>
+        <p>Carica files</p>
+        <form id="files" method="post" enctype="multipart/form-data" action="#" onsubmit="invia(this); return false;"></form>
+    </div>
+</div>
+
+<h2>Orario</h2>
+<div>
+    <label for="selezione">Selezione Orario</label>
+    <form id="selezione" action="#" onsubmit="return visualizza(this)"></form>
+    <button id="but_ripristino" class="right" onclick="ripristino()">Ripristina orario iniziale</button>
+    <button id="but_vincoli" class="right" onclick="show_vincoli()">Stato Vincoli</button>
+    <button id="but_save" class="right" onclick="salvataggio()">Conferma e salva orario</button>
+
+    <table id="tab_output"></table>
+</div>
+
+
+<dialog id="dialog" title="Elaborazione in corso">
+    <p>L'elaborazione può richiedere diversi minuti</p>
+</dialog>
+
+<dialog id="vincoli" title="Stato vincoli"></dialog>
+
+<dialog id="aule_pop" title="Seleziona Aula">
+    <select id="tendina_pop_aule" onchange="aula_cambiata(this)"></select>
+</dialog>
+
+<dialog id="conf_rip" title="Conferma Ripristino">
+    <p>Confermi il ripristino dell'orario iniziale? Tutte le modifiche effettuate andranno perse</p>
+</dialog>
+
+<dialog id="error" title="Errore">
+    <p>Si è verificato un errore</p>
+</dialog>
+
+<dialog id="dialog_save" title="Salvataggio">
+    <p>Procedendo l'orario verrà finalizzato e salvato sul server per la visualizzazione da altri utenti.
+        Non sarà dunque possibile modificarlo successivamente.</p>
+    <p>Vi è la possibilità di salvare l'orario su file per poterlo successivamente modificare.</p>
+</dialog>
 
 </body>
 </html>
