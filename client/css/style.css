@@ -30,6 +30,11 @@
     display: block;
 }
 
+.div-vincoli {
+    overflow: scroll;
+    overflow-wrap: break-word;
+}
+
 .ui-dialog-titlebar-no-close {
     display: none;
 }
@@ -40,4 +45,9 @@
 
 .ui-dialog {
   position: fixed !important;
+}
+
+.ui-dialog-vincoli {
+    overflow: scroll;
+    max-height: 500px;
 }

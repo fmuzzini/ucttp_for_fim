@@ -11,7 +11,7 @@ function get_form_selezione(){
 }
 
 function set_selezione(orari_) {
-    orari = orari_
+    orari = orari_;
     form = form_selezione;
     var box = create_box(orari);
     form.append(box);

@@ -17,7 +17,10 @@ function save(file) {
         map_corsi: map_corsi,
         num_stud: num_stud,
         map_aule: map_aule,
-        cap_aula: cap_aula
+        cap_aula: cap_aula,
+        ora_dopo_pranzo: ora_dopo_pranzo,
+        dict_preferenze_prof: dict_preferenze_prof,
+        dict_map_corso_blocchi_ore: dict_map_corso_blocchi_ore
     };
     item_back = JSON.stringify(item_back);
 
@@ -38,23 +41,7 @@ function save(file) {
 }
 
 function salvataggio(file) {
-    $("#dialog_save").dialog({
-        autoOpen: true,
-        modal: true,
-        buttons: {
-            "Salva solo sul server": function () {
-                save(false);
-                $( this ).dialog( "close" );
-            },
-            "Salva anche su file": function () {
-                save(true);
-                $( this ).dialog( "close" );
-            },
-            "Annulla operazione": function() {
-              $( this ).dialog( "close" );
-            }
-        }
-    });
+    $("#dialog_save").dialog("open");
 }
 
 function carica() {

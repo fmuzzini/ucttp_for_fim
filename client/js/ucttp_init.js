@@ -11,8 +11,6 @@ var input_file = ['piani', 'manifesto', 'insegnamenti', 'aule', 'pesi', 'indispo
 var id_table = "tab_output";    //id della tabella di output
 var id_selezione = "selezione";  //id del form di selezione
 
-var pop_aule_is_loaded = false;
-
 function init() {
     init_input();
     get_table();
@@ -39,12 +37,33 @@ function init() {
     $( function () {
         $("#vincoli").dialog({
             autoOpen: false,
+            maxHeigth: 200,
             position: {
-                my: "right center",
+                my: "right top",
                 at: "right center"
+            },
+            classes: {
+                "ui-dialog": "ui-dialog-vincoli"
             }
         })
     });
+
+    $( function() {
+        $( "#conf_rip" ).dialog({
+            resizable: false,
+            autoOpen: false,
+            modal: true,
+            buttons: {
+                "Confermo": function () {
+                    rip_orario();
+                    $( this ).dialog( "close" );
+                },
+                "Annulla": function() {
+                    $( this ).dialog( "close" );
+                }
+            }
+        });
+     } );
 
     $( function () {
         $("#aule_pop").dialog({
@@ -58,16 +77,36 @@ function init() {
             autoOpen: false,
             modal: true
         })
-    })
+    });
+
+    $( function () {
+        $("#dialog_save").dialog({
+            autoOpen: false,
+            modal: true,
+            buttons: {
+                "Salva solo sul server": function () {
+                    save(false);
+                    $( this ).dialog( "close" );
+                },
+                "Salva anche su file": function () {
+                    save(true);
+                    $( this ).dialog( "close" );
+                },
+                "Annulla operazione": function() {
+                  $( this ).dialog( "close" );
+                }
+            }
+        })
+    });
 }
 
 function show_vincoli() {
-    $("#vincoli").dialog("open");
+        $("#vincoli").dialog("open");
 }
 
 
 function controllo_orario() {
-    var res = check_constraints_model(orario, disp_prof);
+    var res = check_constraints_model(orario, disp_prof, meta, dict_aule, dict_preferenze_prof, map_corsi, num_stud, map_aule, cap_aula, ora_dopo_pranzo, dict_map_corso_blocchi_ore);
     $("#vincoli").html(res);
 }
 

@@ -18,11 +18,24 @@ def solve_model(C, D, H, R, CIC, P, CLO, CL, HI, PROF_OUT, CAP_AULA, ATT, LIST_A
     #l'insieme CIC_union e' l'insieme di tutti i CI
     CIC_union = set([item for CI in CIC for item in CI])
 
+    n_CIC = len(CIC_union)
+
     C_minus_CI = C - CIC_union
 
     #Instanziamento problema
     mp = xp.problem (name = "Gestione Aule")
     mp.setlogfile(os.devnull)
+    #mp.setlogfile("log")
+
+    #set controls
+    controls = {
+        'cutstrategy': 3,
+        'gomcuts': 20,
+        'cutfreq': 1,
+        'cutdepth': 1000,
+        'nodeselection': 5
+    }
+    mp.setControl(controls)
 
     #Variabili decisionali x
     x = np.array([xp.var(vartype=xp.binary) for i in xrange(n_C*n_D*n_H*n_R)]).reshape((n_C,n_D,n_H,n_R))
@@ -38,6 +51,9 @@ def solve_model(C, D, H, R, CIC, P, CLO, CL, HI, PROF_OUT, CAP_AULA, ATT, LIST_A
 
     #variabili decisionali s
     s = np.array([xp.var(vartype=xp.continuous) for i in xrange(n_CL*n_D*n_H)]).reshape((n_CL, n_D, n_H))
+
+    #variabili decisionali g
+    #g = np.array([xp.var(vartype=xp.binary) for i in xrange(n_CL*n_D)]).reshape((n_CL,n_D))
 
     #vincolo di uno solo corso nella stessa stanza in un certo momento
     ocir = (xp.Sum([x[c,d,h,r] for c in C]) <= 1 for r in R for h in H for d in D)
@@ -78,7 +94,7 @@ def solve_model(C, D, H, R, CIC, P, CLO, CL, HI, PROF_OUT, CAP_AULA, ATT, LIST_A
         att = (CORSI_ATT[c,t] * x[c,d,h,r] - LIST_ATT[r,t] - csi_att[c,d,h,r] <= 0 for d in D for h in H for c in CIC_union for r in R for t in ATT)
         vincoli_agg.append(att)
         # funzione obbiettivo sulle attrezzature delle aule
-        obj_att = (coef['att'] * xp.Sum([csi_att[c, d, h, r] for c in CIC_union for d in D for h in H for r in R]))
+        obj_att = (coef['att'] / float(n_CIC) * xp.Sum([csi_att[c, d, h, r] for c in CIC_union for d in D for h in H for r in R]))
         funz_agg.append(obj_att)
 
     #vincolo edifici
@@ -86,25 +102,31 @@ def solve_model(C, D, H, R, CIC, P, CLO, CL, HI, PROF_OUT, CAP_AULA, ATT, LIST_A
         edi = (CORSI_EDI[c,e] * x[c,d,h,r] - EDI[r,e] - csi_edi[c,d,h,r] <= 0 for e in E for c in CIC_union for h in H for d in D for r in R)
         vincoli_agg.append(edi)
         # funzione obbiettivo sugli edifici
-        obj_e = (coef['edi'] * xp.Sum([csi_edi[c, d, h, r] for c in CIC_union for d in D for h in H for r in R]))
+        obj_e = (coef['cap'] / float(n_CIC) * xp.Sum([csi_edi[c, d, h, r] for c in CIC_union for d in D for h in H for r in R]))
         funz_agg.append(obj_e)
 
     #vincolo sovrapposizione corsi facoltativi
     cf = (xp.Sum([x[c,d,h,r] for r in R for c in cl]) <= s[index,d,h] for d in D for h in H for (index,cl) in enumerate(CL))
 
     #funzione obbiettivo base (solo capacita' aule)
-    obj_cap = (coef['cap'] * xp.Sum([csi_cap[c,d,h,r] for c in CIC_union for d in D for h in H for r in R]))
+    obj_cap = (coef['cap'] / float(n_CIC*(np.max(NUM_STUD)-np.min(CAP_AULA))) * xp.Sum([csi_cap[c,d,h,r] for c in CIC_union for d in D for h in H for r in R]))
 
     #funzione obiettivo per compattare orario
     if len(TAB_PESI) != 0:
-        obj_comp = (coef['comp'] * xp.Sum([x[c,d,h,r]*TAB_PESI[d,h] for c in C for d in D for h in H for r in R]))
+        max_pesi = float(n_C * np.max(TAB_PESI))
+        min_pesi = float(n_C * np.min(TAB_PESI))
+        obj_comp = (coef['comp'] / (max_pesi - min_pesi) * (-min_pesi + xp.Sum([x[c,d,h,r]*TAB_PESI[d,h] for c in C for d in D for h in H for r in R]) ))
         funz_agg.append(obj_comp)
 
+    #vincoli giorni
+    #ng = (xp.Sum([x[c,d,h,r] for c in cl for r in R for h in H]) <= g[index,d] * len(H) * len(cl) for (index,cl) in enumerate(CL) for d in [0, 4])
+    #obj_ng = (coef['comp'] / float(n_CL*2*2) * xp.Sum([g[cl,d] for cl in xrange(n_CL) for d in [0, 4]]))
+
     #funzione obbiettivo corsi facoltativi
-    obj_fac = (coef['sov'] * xp.Sum([s[cl,d,h] for cl in xrange(n_CL) for d in D for h in H]))
+    obj_fac = (coef['sov'] / float(n_C) * xp.Sum([s[cl,d,h] for cl in xrange(n_CL) for d in D for h in H]))
 
     #funzione obbiettivo completa
-    obj = obj_cap + obj_fac
+    obj = obj_cap + obj_fac #+ obj_ng
     for f in funz_agg:
         obj = obj + f
 
@@ -114,6 +136,7 @@ def solve_model(C, D, H, R, CIC, P, CLO, CL, HI, PROF_OUT, CAP_AULA, ATT, LIST_A
     mp.addVariable(csi_att)
     mp.addVariable(csi_edi)
     mp.addVariable(s)
+    #mp.addVariable(g)
 
     #Aggiunta vincoli al problema
     mp.addConstraint(ocir)
@@ -125,11 +148,14 @@ def solve_model(C, D, H, R, CIC, P, CLO, CL, HI, PROF_OUT, CAP_AULA, ATT, LIST_A
     mp.addConstraint(co)
     mp.addConstraint(br)
     mp.addConstraint(cf)
+    #mp.addConstraint(ng)
     for v in vincoli_agg:
         mp.addConstraint(v)
 
     #Inserimento funzione obbiettivo nel problema
     mp.setObjective(obj, sense=xp.minimize)
+
+    #mp.write("modello.lp", "lps")
 
     #risoluzione
     mp.solve()
@@ -144,6 +170,12 @@ def solve_model(C, D, H, R, CIC, P, CLO, CL, HI, PROF_OUT, CAP_AULA, ATT, LIST_A
 
     sol_csi = mp.getSolution(csi_cap)
     sol_csi = np.array(sol_csi).reshape((n_C,n_D,n_H,n_R))
+    sol_s = mp.getSolution(s)
+    sol_s = np.array(sol_s).reshape((n_CL, n_D, n_H))
+    sol_att = mp.getSolution(csi_att)
+    sol_att = np.array(sol_att).reshape((n_C,n_D,n_H,n_R))
+    sol_edi = mp.getSolution(csi_edi)
+    sol_edi = np.array(sol_edi).reshape((n_C,n_D,n_H,n_R))
 
     #valore funzione obbiettivo
     obj_val = mp.getObjVal()

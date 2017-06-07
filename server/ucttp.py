@@ -5,7 +5,7 @@ import cgitb
 import os
 import json
 
-from prova import stampa_prova
+#from prova import stampa_prova
 
 try: # Windows needs stdio set for binary mode.
     import msvcrt
@@ -16,7 +16,7 @@ except ImportError:
 
 
 class Response:
-    def __init__(self, meta, orario, disp):
+    def __init__(self, meta, orario, disp, dict_aule, map_corsi, num_stud, map_aule, cap_aula, dict_preferenze_prof, ora_dopo_pranzo, dict_map_corso_blocchi_ore):
         self.orario = [o.__dict__ for o in orario]
         ore = sorted(meta['ore'].items(), key=lambda o: o[1])
         giorni = sorted(meta['giorni'].items(), key=lambda g: g[1])
@@ -27,14 +27,22 @@ class Response:
             'giorni': giorni
         }
         self.disp = disp
+        self.dict_aule = dict_aule
+        self.map_corsi = map_corsi
+        self.num_stud = num_stud
+        self.map_aule = map_aule
+        self.cap_aula = cap_aula
+        self.dict_preferenze_prof = dict_preferenze_prof
+        self.ora_dopo_pranzo = ora_dopo_pranzo
+        self.dict_map_corso_blocchi_ore = dict_map_corso_blocchi_ore
 
 cgitb.enable()
 print "Content-type: application/json"
 print ""
 
 
-stampa_prova()
-exit(0)
+#stampa_prova()
+#exit(0)
 
 from manipulate_sol import get_nonzero_index, mapping_indici
 from ParsinigXls import get_data_for_model, load_data
@@ -62,7 +70,7 @@ param = form['parametri'].file.read()
 edi = form['edifici'].file.read()
 
 # parsing dei file xls
-dict_cdl, dict_aule, dict_lez_shared, lista_cod_shared, dict_preferenze_prof = load_data(ins, man, piani, aule, blocchi)
+dict_cdl, dict_aule, dict_lez_shared, lista_cod_shared, dict_preferenze_prof, dict_map_corso_blocchi_ore = load_data(ins, man, piani, aule, blocchi)
 
 #parsing attrezzature
 schema_aule = SchemaAule(aule)
@@ -88,13 +96,11 @@ coef = {
 }
 
 # ottenimento dati utili per il modello
-map_corsi, C, CIC, P, CLO, NUM_STUD, CL, R, CAP_AULA, map_aule, D, H, map_giorni, map_orari = get_data_for_model(dict_cdl, dict_aule, lista_cod_shared, dict_lez_shared, dict_preferenze_prof, semestre)
+map_corsi, C, CIC, P, CLO, NUM_STUD, CL, CAP_AULA, map_aule = get_data_for_model(dict_cdl, dict_aule, lista_cod_shared, dict_lez_shared, dict_preferenze_prof, semestre)
 
 map = {
      "corsi": map_corsi,
-     "aule": map_aule,
-     "giorni" : map_giorni,
-     "orari" : map_orari
+     "aule": map_aule
 }
 
 schema_disp = SchemaDisp(disp, map_corsi, meta)
@@ -115,7 +121,7 @@ try:
     sol = solve_model(C, D, H, R, CIC, P, CLO, CL, HI, PROF_OUT, CAP_AULA, ATT, LIST_ATT, CORSI_ATT, E, EDI, CORSI_EDI,
                       NUM_STUD, TAB_PESI, coef)
 except Exception as e:
-    print "Problema impossibile"
+    print e.message
 
 # orario grezzo con indici
 orario_raw = get_nonzero_index(sol.x)
@@ -123,7 +129,7 @@ orario_raw = get_nonzero_index(sol.x)
 # orario raffinato con nomi dei corsi e delle aulee
 orario = mapping_indici(orario_raw, map)
 
-response = Response(meta, orario, schema_disp.get_dict_disp())
+response = Response(meta, orario, schema_disp.get_dict_disp(), dict_aule, map_corsi, NUM_STUD, map_aule, CAP_AULA, dict_preferenze_prof, HI[-1], dict_map_corso_blocchi_ore)
 
 #stampa in formato json
 print json.dumps(response.__dict__)

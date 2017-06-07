@@ -25,6 +25,26 @@ def from_string_to_label_col(label_col, worksheet, exact_match=False):
                     return i
     return -1
 
+# funzione che restituisce il nome di un corso in base alla sua chiave
+# argomenti:
+#   - dict_cdl: dizionario dei corsi
+#   - chiave: chiave del corso di cui cercare il nome
+# return:
+#   - se trovato, nome del corso
+#   - -1 se non e' stato trovato
+def search_nome_corso_with_key(dict_cdl, chiave):
+    index_nome = 2
+    for k_cdl, v_cdl in dict_cdl.iteritems():
+        for k_durata, v_durata in v_cdl.iteritems():
+            for k_anni, v_anni in v_durata.iteritems():
+                for k_sem, v_sem in v_anni.iteritems():
+                    for k_tipo, v_tipo in v_sem.iteritems():
+                        for corso in v_tipo:
+                            for key, value in corso.iteritems():
+                                if (key == chiave):
+                                    return value[index_nome]
+    return -1
+
 # funzione che permette di fare il parsing di file xls e di estrarne il contenuto significativo in dizionari
 # parametri:
 #   - file_ins: nome file dei dati degli insegnamenti
@@ -307,6 +327,7 @@ def load_data(file_ins, file_man, file_piani, file_aule, file_blocchi):
         exit(1)
 
     old_cod_ins = []
+    dict_map_corso_blocchi_ore = {}
     for i in xrange(1, nrows_piani):
         # ottengo i principali dati di accesso al dictionary creato all'inizio dal file dei piani
         cod_cdl =  worksheet_piani.cell_value(i, col_cod_cdl_piani)
@@ -340,6 +361,7 @@ def load_data(file_ins, file_man, file_piani, file_aule, file_blocchi):
                 lista_campi_lez.append(nome_lez) #codice_ins + nome_lez) #nome_lez)
                 #print
                 lista_campi_lez.append(blocchi_ore)
+                dict_map_corso_blocchi_ore[codice_ins] = blocchi_ore
                 # per il momento creo il numero di studenti per ogni corso in modo casuale
                 num_studenti_per_corso = worksheet_ins.cell_value(j, col_num_stud)
                 lista_campi_lez.append(num_studenti_per_corso)
@@ -509,17 +531,24 @@ def load_data(file_ins, file_man, file_piani, file_aule, file_blocchi):
             data = worksheet_blocchi.cell_value(i, j)
             lista_att.append(data)
 
+        # cerco nome corso
+        nome_corso = search_nome_corso_with_key(dict_cdl, key)
+        if (nome_corso == -1):
+            print 'errore costruzione dati preferenze prof'
+            exit(1)
+
         item = {
             'ore': int(worksheet_blocchi.cell_value(i, col_ore_blocco)),
             'index': None,
-            'att': lista_att
+            'att': lista_att,
+            'nome': nome_corso
         }
         try:
             dict_preferenze_prof[key].append(item)
         except KeyError:
             dict_preferenze_prof.setdefault(key, [item])
 
-    return dict_cdl, dict_aule, dict_lez_shared, lista_cod_shared, dict_preferenze_prof
+    return dict_cdl, dict_aule, dict_lez_shared, lista_cod_shared, dict_preferenze_prof, dict_map_corso_blocchi_ore
 
 # funzione che estrae dai vari dizionari solo le informazioni relative ad un particolare semestre
 # parametri:
@@ -661,13 +690,8 @@ def search_same_course_in_other_cdl(cdl, sem, key_corso, dict_cdl):
 #   - P: lista dei corsi dei prof di un particolare semestre
 #   - CLO: lista dei corsi obbligatori di un particolare semestre
 #   - NUM_STUD: lista degli studenti frequentanti i corsi di un particolare semestre
-#   - R: identificativi delle aule
 #   - lista_cap_aule: lista delle capienze delle aule
 #   - dict_id_aule: dizionario mapping tra identificativi e nomi aule
-#   - D: giorni
-#   - H: fasce orarie
-#   - dict_giorni: dizionario di mapping per i giorni
-#   - dict_orari: dizionario di mapping per le fasce orarie
 def get_data_for_model(dict_cdl, dict_aule, lista_cod_shared, dict_lez_shared, dict_preferenze_prof, semestre_scelto):
 
     #######################################################
@@ -1177,30 +1201,9 @@ def get_data_for_model(dict_cdl, dict_aule, lista_cod_shared, dict_lez_shared, d
     #print 'AULE: ' + str(dict_id_aule)
     #print 'CAP_AULE: ' + str(lista_cap_aule)
 
-    # lista degli identificativi delle aule
-    R = range(index_aule)
-
-    # creo dizionario di mapping per i giorni della settimana
-    giorni = ['Lunedi', 'Martedi', 'Mercoledi', 'Giovedi', 'Venerdi']
-    dict_giorni = {}
-    for i in xrange(giorni.__len__()):
-        dict_giorni[i] = giorni[i]
-    #print dict_giorni
-    D = range(giorni.__len__())
-    #print D
-
-    # creo dizionario di mapping delle fasce orarie in cui si ha lezione
-    fasce_orarie = ['9:00-10:00', '10:00-11:00', '11:00-12:00', '12:00-13:00', '14:00-15:00', '15:00-16:00', '16:00-17:00', '17:00-18:00']
-    dict_orari = {}
-    for i in xrange(fasce_orarie.__len__()):
-        dict_orari[i] = fasce_orarie[i]
-    #print dict_orari
-    H = range(fasce_orarie.__len__())
-    #print H
-
     if (semestre_scelto == 1):
         CORSI, C, CIC, P, CLO, NUM_STUD, CL = extract_semestre_from_dict(dict_map_ore_corso_s1_s2, dict_set_C_s1_s2, dict_CIC_s1_s2, dict_P_s1_s2, dict_CLO_s1_s2, dict_num_stud, dict_CL, 'S1')
-        return CORSI, C, CIC, P, CLO, NUM_STUD, CL, R, lista_cap_aule, dict_id_aule, D, H, dict_giorni, dict_orari
+        return CORSI, C, CIC, P, CLO, NUM_STUD, CL, lista_cap_aule, dict_id_aule
     # se semstre 2
     CORSI, C, CIC, P, CLO, NUM_STUD, CL = extract_semestre_from_dict(dict_map_ore_corso_s1_s2, dict_set_C_s1_s2, dict_CIC_s1_s2, dict_P_s1_s2, dict_CLO_s1_s2, dict_num_stud, dict_CL, 'S2')
-    return CORSI, C, CIC, P, CLO, NUM_STUD, CL, R, lista_cap_aule, dict_id_aule, D, H, dict_giorni, dict_orari
+    return CORSI, C, CIC, P, CLO, NUM_STUD, CL, lista_cap_aule, dict_id_aule

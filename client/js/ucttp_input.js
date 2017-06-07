@@ -91,7 +91,11 @@ function elabora_response(response) {
     num_stud = j.num_stud;
     map_aule = j.map_aule;
     cap_aula = j.cap_aula;
+    dict_preferenze_prof = j.dict_preferenze_prof;
+    ora_dopo_pranzo = j.ora_dopo_pranzo;
+    dict_map_corso_blocchi_ore = j.dict_map_corso_blocchi_ore;
 
+    pop_aule_is_loaded = false;
 
     $("#dialog").dialog("close");
     $("body").accordion("option", "active", 1);

@@ -23,7 +23,7 @@ file_blocchi = open("Blocchi.xls", mode='rb').read()
 file_edi = open("Edifici.xls", mode="rb").read()
 
 # parsing dei file xls
-dict_cdl, dict_aule, dict_lez_shared, lista_cod_shared, dict_preferenze_prof = load_data(file_ins, file_man, file_piani, file_aule, file_blocchi)
+dict_cdl, dict_aule, dict_lez_shared, lista_cod_shared, dict_preferenze_prof, dict_map_corso_blocchi_ore = load_data(file_ins, file_man, file_piani, file_aule, file_blocchi)
 
 #parsing attrezzature
 schema_aule = SchemaAule(file_aule)
@@ -49,13 +49,11 @@ coef = {
 }
 
 # ottenimento dati utili per il modello
-map_corsi, C, CIC, P, CLO, NUM_STUD, CL, R, CAP_AULA, map_aule, D, H, map_giorni, map_orari = get_data_for_model(dict_cdl, dict_aule, lista_cod_shared, dict_lez_shared, dict_preferenze_prof, semestre)
+map_corsi, C, CIC, P, CLO, NUM_STUD, CL, CAP_AULA, map_aule = get_data_for_model(dict_cdl, dict_aule, lista_cod_shared, dict_lez_shared, dict_preferenze_prof, semestre)
 
 map = {
      "corsi": map_corsi,
-     "aule": map_aule,
-     "giorni" : map_giorni,
-     "orari" : map_orari
+     "aule": map_aule
 }
 
 schema_disp = SchemaDisp(file_disp, map_corsi, meta)
@@ -66,6 +64,14 @@ CORSI_ATT = schema_blocchi.get_corsi_att()
 D = schema_pesi.get_d()
 H = schema_pesi.get_h()
 R = schema_aule.get_lista_aule()
+
+print map_corsi
+print dict_map_corso_blocchi_ore
+
+print dict_aule
+print dict_cdl
+print map_aule
+print dict_preferenze_prof
 
 schema_edi = SchemaEdi(C, CIC, file_edi, file_piani, map_corsi)
 CORSI_EDI = schema_edi.get_corsi_edi()
@@ -84,4 +90,5 @@ orario_raw = get_nonzero_index(sol.x)
 orario = mapping_indici(orario_raw, map)
 
 j = json.dumps([o.__dict__ for o in orario])
-#print j
+print j
+
