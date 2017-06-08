@@ -86,6 +86,7 @@ meta = schema_pesi.get_meta()
 schema_param = SchemaParametri(param, meta)
 semestre = schema_param.semestre
 HI = schema_param.get_hi()
+max_time = schema_param.get_max_time()
 
 coef = {
     'edi': schema_param.edi,
@@ -112,14 +113,15 @@ D = schema_pesi.get_d()
 H = schema_pesi.get_h()
 R = schema_aule.get_lista_aule()
 
+G_OUT = schema_param.get_g_out(D)
+
 schema_edi = SchemaEdi(C, CIC, edi, piani, map_corsi)
 CORSI_EDI = schema_edi.get_corsi_edi()
-
 
 # risoluzione modello
 try:
     sol = solve_model(C, D, H, R, CIC, P, CLO, CL, HI, PROF_OUT, CAP_AULA, ATT, LIST_ATT, CORSI_ATT, E, EDI, CORSI_EDI,
-                      NUM_STUD, TAB_PESI, coef)
+                      NUM_STUD, TAB_PESI, G_OUT, coef, max_time)
 except Exception as e:
     print e.message
 

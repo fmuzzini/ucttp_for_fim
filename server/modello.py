@@ -3,7 +3,7 @@ import numpy as np
 import os
 
 
-def solve_model(C, D, H, R, CIC, P, CLO, CL, HI, PROF_OUT, CAP_AULA, ATT, LIST_ATT, CORSI_ATT, E, EDI, CORSI_EDI, NUM_STUD, TAB_PESI, coef):
+def solve_model(C, D, H, R, CIC, P, CLO, CL, HI, PROF_OUT, CAP_AULA, ATT, LIST_ATT, CORSI_ATT, E, EDI, CORSI_EDI, NUM_STUD, TAB_PESI, G_OUT, coef, max_time):
     n_C = len(C)		# numero ore del corso (1 2 3 4 5 6 7 8 9)
     n_D = len(D)		# giorni (1..5)
     n_H = len(H)		# ore (1..8)
@@ -22,6 +22,9 @@ def solve_model(C, D, H, R, CIC, P, CLO, CL, HI, PROF_OUT, CAP_AULA, ATT, LIST_A
 
     C_minus_CI = C - CIC_union
 
+    CLO_union = [item for CO in CLO for item in CO]
+    n_CO = len(CLO_union)
+
     #Instanziamento problema
     mp = xp.problem (name = "Gestione Aule")
     mp.setlogfile(os.devnull)
@@ -33,7 +36,8 @@ def solve_model(C, D, H, R, CIC, P, CLO, CL, HI, PROF_OUT, CAP_AULA, ATT, LIST_A
         'gomcuts': 20,
         'cutfreq': 1,
         'cutdepth': 1000,
-        'nodeselection': 5
+        'nodeselection': 5,
+        'maxtime': max_time
     }
     mp.setControl(controls)
 
@@ -53,7 +57,10 @@ def solve_model(C, D, H, R, CIC, P, CLO, CL, HI, PROF_OUT, CAP_AULA, ATT, LIST_A
     s = np.array([xp.var(vartype=xp.continuous) for i in xrange(n_CL*n_D*n_H)]).reshape((n_CL, n_D, n_H))
 
     #variabili decisionali g
-    #g = np.array([xp.var(vartype=xp.binary) for i in xrange(n_CL*n_D)]).reshape((n_CL,n_D))
+    g = np.array([xp.var(vartype=xp.binary) for i in xrange(n_CL*n_D)]).reshape((n_CL,n_D))
+
+    #variabili comp
+    comp = [xp.var(vartype=xp.continuous) for i in xrange(n_CL)]
 
     #vincolo di uno solo corso nella stessa stanza in un certo momento
     ocir = (xp.Sum([x[c,d,h,r] for c in C]) <= 1 for r in R for h in H for d in D)
@@ -115,18 +122,28 @@ def solve_model(C, D, H, R, CIC, P, CLO, CL, HI, PROF_OUT, CAP_AULA, ATT, LIST_A
     if len(TAB_PESI) != 0:
         max_pesi = float(n_C * np.max(TAB_PESI))
         min_pesi = float(n_C * np.min(TAB_PESI))
-        obj_comp = (coef['comp'] / (max_pesi - min_pesi) * (-min_pesi + xp.Sum([x[c,d,h,r]*TAB_PESI[d,h] for c in C for d in D for h in H for r in R]) ))
+
+        # vincolo compattezza cl
+        ccl = (xp.Sum([x[c, d, h, r] * TAB_PESI[d, h] for c in cl for d in D for h in H for r in R]) <= comp[index] for (index, cl) in enumerate(CL))
+        obj_comp = (coef['comp'] / (max_pesi - min_pesi) * (-min_pesi + xp.Sum([comp[index] for (index, cl) in enumerate(CL)])))
         funz_agg.append(obj_comp)
+        vincoli_agg.append(ccl)
+
 
     #vincoli giorni
-    #ng = (xp.Sum([x[c,d,h,r] for c in cl for r in R for h in H]) <= g[index,d] * len(H) * len(cl) for (index,cl) in enumerate(CL) for d in [0, 4])
-    #obj_ng = (coef['comp'] / float(n_CL*2*2) * xp.Sum([g[cl,d] for cl in xrange(n_CL) for d in [0, 4]]))
+    if len(G_OUT) != 0:
+        ng = (xp.Sum([x[c,d,h,r] for c in cl for r in R for h in H]) <= g[index,d] * len(H) * len(cl) for (index,cl) in enumerate(CL) for d in G_OUT)
+        obj_ng = (coef['comp'] * 0.5 / float(n_CL*len(G_OUT)) * xp.Sum([g[cl,d] for cl in xrange(n_CL) for d in G_OUT]))
+        vincoli_agg.append(ng)
+        funz_agg.append(obj_ng)
 
     #funzione obbiettivo corsi facoltativi
-    obj_fac = (coef['sov'] / float(n_C) * xp.Sum([s[cl,d,h] for cl in xrange(n_CL) for d in D for h in H]))
+    max_fac = 2 * n_C - n_CO
+    min_fac = n_C
+    obj_fac = (coef['sov'] / float(max_fac-min_fac) * (-min_fac + xp.Sum([s[cl,d,h] for cl in xrange(n_CL) for d in D for h in H])))
 
     #funzione obbiettivo completa
-    obj = obj_cap + obj_fac #+ obj_ng
+    obj = obj_cap + obj_fac
     for f in funz_agg:
         obj = obj + f
 
@@ -136,7 +153,8 @@ def solve_model(C, D, H, R, CIC, P, CLO, CL, HI, PROF_OUT, CAP_AULA, ATT, LIST_A
     mp.addVariable(csi_att)
     mp.addVariable(csi_edi)
     mp.addVariable(s)
-    #mp.addVariable(g)
+    mp.addVariable(comp)
+    mp.addVariable(g)
 
     #Aggiunta vincoli al problema
     mp.addConstraint(ocir)
@@ -148,7 +166,6 @@ def solve_model(C, D, H, R, CIC, P, CLO, CL, HI, PROF_OUT, CAP_AULA, ATT, LIST_A
     mp.addConstraint(co)
     mp.addConstraint(br)
     mp.addConstraint(cf)
-    #mp.addConstraint(ng)
     for v in vincoli_agg:
         mp.addConstraint(v)
 
@@ -166,7 +183,7 @@ def solve_model(C, D, H, R, CIC, P, CLO, CL, HI, PROF_OUT, CAP_AULA, ATT, LIST_A
 
     #rimappamento variabili soluzione
     sol_x = mp.getSolution(x)
-    sol_x = np.array(sol_x).reshape((n_C,n_D,n_H,n_R))
+    sol_x = np.array(sol_x).reshape((n_C,n_D,n_H,n_R)).round()
 
     sol_csi = mp.getSolution(csi_cap)
     sol_csi = np.array(sol_csi).reshape((n_C,n_D,n_H,n_R))

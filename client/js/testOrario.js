@@ -40,6 +40,16 @@ function check_constraints_model(out, obj_pref_prof, meta, dict_aule, obj_pref_a
     resultsTest_hard.push(ris_test[key_ris_test_risultato])
     string_test_hard.push(ris_test[key_ris_test_msg])
 
+    // test 12 -> indisponibilita' stessa aula, stesso giorno, stessa ora di piu' corsi diversi
+    ris_test = testUniqueRoomSameMomentDifferentCourses(out, orari, days)
+    resultsTest_hard.push(ris_test[key_ris_test_risultato])
+    string_test_hard.push(ris_test[key_ris_test_msg])
+
+    // test 13 -> stesso corso in ore successive, dello stesso giorno, in aule diverse
+    ris_test = testSameCourseDifferentRoomsConsecutiveHourSameDay(out, orari, days)
+    resultsTest_hard.push(ris_test[key_ris_test_risultato])
+    string_test_hard.push(ris_test[key_ris_test_msg])
+
     // test 2 -> vincolo prof di un corso in un ora, non puo' avere un altro corso nella stessa ora dello stesso giorno
     ris_test = testNotUbiquityProf(out, orari, days)
     resultsTest_hard.push(ris_test[key_ris_test_risultato])
@@ -280,6 +290,90 @@ function testUniqueQuadrupla(out, orari, days) {
     ris = create_test_response(true, stringa)
     return ris
 }
+
+
+/* test che permette di verificare che un'aula non sia sta assegnata nello stesso giorno, nella stessa ora, a corsi diversi
+ * parametri:
+ *   - out: orario ottenuto da modello
+ *   - orari: fasce orarie in cui fare lezione
+ *   - days: giorni in cui si ha lezione
+ * return:
+ *   - ris: oggetto composto dall'esito del test (true o false) e dal suo relativo eventuale messaggio di fallimento
+ */
+function testUniqueRoomSameMomentDifferentCourses(out, orari, days) {
+    var key_corsi = 'corsi effettivi'
+    var id_corsi = 0  // per evitare di guardare i corsi condivisi
+    var key_nome_corso = 'nome'
+    var ris = {}
+    var stringa = ''
+
+    for (var j = 0; j < out.length; j++){
+        var orario = out[j]['h']
+        var corso = out[j]['c'][key_corsi][id_corsi][key_nome_corso]
+        var aula = out[j]['r']
+        var giorno = out[j]['d']
+
+        var list_other_hour = create_list_other_hour(out, j)
+
+        for (var i in list_other_hour) {          //per tutte le altre ore dell'orario
+            var index_hour = list_other_hour[i]
+            if (out[index_hour]['h'] === orario && out[index_hour]['c'][key_corsi][id_corsi][key_nome_corso] !== corso && out[index_hour]['r'] === aula && out[index_hour]['d'] === giorno) {
+                stringa = "Indisponibilita' stessa aula " + aula + " nello stesso giorno " + days[giorno] + ", nella stessa ora " + orari[orario] + " di due corsi diversi (" + corso + ", " + out[index_hour]['c'][key_corsi][id_corsi][key_nome_corso] + ")"
+                ris = create_test_response(false, stringa)
+                return ris
+            }
+        }
+    }
+    ris = create_test_response(true, stringa)
+    return ris
+}
+
+/* test che permette di verificare che un'aula non sia sta assegnata nello stesso giorno, nella stessa ora, a corsi diversi
+ * parametri:
+ *   - out: orario ottenuto da modello
+ *   - orari: fasce orarie in cui fare lezione
+ *   - days: giorni in cui si ha lezione
+ * return:
+ *   - ris: oggetto composto dall'esito del test (true o false) e dal suo relativo eventuale messaggio di fallimento
+ */
+function testSameCourseDifferentRoomsConsecutiveHourSameDay(out, orari, days) {
+    var key_corsi = 'corsi effettivi'
+    var id_corsi = 0  // per evitare di guardare i corsi condivisi
+    var key_nome_corso = 'nome'
+    var key_anno = 'anno'
+    var key_cdl = 'corso_di_laurea'
+    var key_mag_tr = 'mag_tr'
+    var ris = {}
+    var stringa = ''
+
+    for (var j = 0; j < out.length; j++){
+        var orario = out[j]['h']
+        var corso = out[j]['c'][key_corsi][id_corsi][key_nome_corso]
+        var aula = out[j]['r']
+        var giorno = out[j]['d']
+        var anno = out[j]['c'][key_corsi][id_corsi][key_anno]
+        var cdl = out[j]['c'][key_corsi][id_corsi][key_cdl]
+        var mag_tr = out[j]['c'][key_corsi][id_corsi][key_mag_tr]
+
+        var range_orario = [orario-1, orario+1]
+
+        var list_other_hour = create_list_other_hour(out, j)
+
+        for (var i in list_other_hour) {          //per tutte le altre ore dell'orario
+            var index_hour = list_other_hour[i]
+            if (range_orario.includes(out[index_hour]['h']) && out[index_hour]['c'][key_corsi][id_corsi][key_nome_corso] === corso && out[index_hour]['r'] !== aula && out[index_hour]['d'] === giorno &&
+            anno === out[index_hour]['c'][key_corsi][id_corsi][key_anno] && cdl === out[index_hour]['c'][key_corsi][id_corsi][key_cdl] && mag_tr === out[index_hour]['c'][key_corsi][id_corsi][key_mag_tr]) {
+                //console.log(range_orario)
+                stringa = "Stesso corso " + corso + " in ore successive (a partire da " + orari[orario] + "), nello stesso giorno " + days[giorno] + " e in aule diverse (" + aula + ", " + out[index_hour]['r'] + ")"
+                ris = create_test_response(false, stringa)
+                return ris
+            }
+        }
+    }
+    ris = create_test_response(true, stringa)
+    return ris
+}
+
 
 /* funzione che cerca i corsi di uno stesso prof
  * parametri:
@@ -563,7 +657,8 @@ function testRespectRoomCapacity(out, map_corsi, NUM_STUD, map_aule, CAP_AULA) {
 
     if (lista_tol) {      // se la lista e' piena
         // console.log(lista_tol)
-        stringa = "Le seguenti aule non hanno una capienza sufficiente per i rispettivi corsi: (" + lista_aule_err + ") -> (" + lista_corsi_err + "), con eccesso della rispettiva quantita' di studenti: (" + lista_tol + ")"
+        stringa = "I seguenti corsi non sono stati assegnati ad un'aula abbastanza capiente: (" + lista_corsi_err + ")" // , con eccesso della rispettiva quantita' di studenti: (" + lista_tol + ")"
+        //stringa = "Le seguenti aule non hanno una capienza sufficiente per i rispettivi corsi: (" + lista_aule_err + ") -> (" + lista_corsi_err //+ "), con eccesso della rispettiva quantita' di studenti: (" + lista_tol + ")"
         ris = create_test_response(false, stringa)
         return ris
     }
@@ -1259,7 +1354,7 @@ function testEdiCourse(out, dict_aule, obj_pref_attr_corso) {
     }
     else {
         var lista_sedi_corsi_err = search_false_item(lista_sede_result, sede_corsi)
-        stringa = "Non rispettate le preferenze relative alle sed dei seguenti corsi: (" + lista_sedi_corsi_err + ")"
+        stringa = "Non rispettate le preferenze relative alle sedi dei seguenti corsi: (" + lista_sedi_corsi_err + ")"
         ris = create_test_response(false, stringa)
         return ris
     }

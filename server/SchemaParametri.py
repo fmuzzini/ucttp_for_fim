@@ -18,3 +18,16 @@ class SchemaParametri:
         ora = xldate_as_tuple(self.pranzo, 0)
         o = self.meta['ore']['{:02d}:{:02d}'.format(ora[3], ora[4])]
         return [0,o]
+
+    def get_g_out(self, g):
+        if 'S' in self.dati.get_campo_where('Valore', Parametro='compattare orario').upper():
+            return [g[0], g[-1]]
+
+        return []
+
+    def get_max_time(self):
+        max_time = self.dati.get_campo_where('Valore', Parametro='tempo massimo')
+        if max_time > 0:
+            return max_time
+
+        return 0

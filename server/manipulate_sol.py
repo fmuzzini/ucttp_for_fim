@@ -2,7 +2,7 @@ import numpy as np
 
 def get_nonzero_index(sol):
     s = get_solution_index_value(sol)
-    s = [i for i in s if i.value == 1]
+    s = [i for i in s if i.value != 0]
 
     return s
 
